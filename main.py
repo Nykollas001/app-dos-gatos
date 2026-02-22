@@ -138,13 +138,27 @@ MDScreen:
                 valign: "top"
                 font_size: "11sp"
 
-        MDTextField:
-            id: console_input
-            hint_text: "Digite comando (ex: help, debug, stats, user @admin, quit)"
-            on_text_validate: app.process_command(self.text); self.text = ""
+        MDBoxLayout:
+            orientation: 'horizontal'
             size_hint_y: None
-            height: "40dp"
-            font_size: "12sp"
+            height: "50dp"
+            spacing: "5dp"
+            
+            MDTextField:
+                id: console_input
+                hint_text: "Digite comando (ex: help, debug, stats, user @admin, quit)"
+                on_text_validate: app.submit_console_command()
+                size_hint_x: 0.85
+                height: "50dp"
+                font_size: "12sp"
+                multiline: False
+            
+            MDRaisedButton:
+                text: "Enviar"
+                on_release: app.submit_console_command()
+                size_hint_x: 0.15
+                height: "50dp"
+                font_size: "12sp"
 '''
 
 class GatoApp(MDApp):
@@ -553,6 +567,17 @@ class GatoApp(MDApp):
                 self.root.ids.console_input.focus = True
         except Exception as e:
             self.add_log(f"⚠️ Erro ao focar console_input: {e}")
+    
+    def submit_console_command(self):
+        """Função para enviar comando do console (chamada pelo botão ou Enter)"""
+        try:
+            if self.root and 'console_input' in self.root.ids:
+                text = self.root.ids.console_input.text.strip()
+                if text:
+                    self.process_command(text)
+                    self.root.ids.console_input.text = ""
+        except Exception as e:
+            self.add_log(f"❌ Erro ao enviar comando: {e}")
     
     def process_command(self, command):
         try:
