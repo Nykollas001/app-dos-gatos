@@ -1,0 +1,17 @@
+{
+  "users": [
+    {
+      "id": "usr_admin_001",
+      "ip": "127.0.0.1",
+      "username": "hostadmin.ni",
+      "password": "$2b$10$examplehash",
+      "name": "Admin Central",
+      "color": "roxo",
+      "colorCode": "#8B00FF",
+      "points": 10000,
+      "role": "CEO",
+      "createdAt": "2026-02-22T00:00:00Z",
+      "lastLogin": "2026-02-22T00:00:00Z"
+    }
+  ]
+}

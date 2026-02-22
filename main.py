@@ -1,14 +1,15 @@
 """
-🐾 App dos Gatos v2.0 - Mobile Application
+🐾 App dos Gatos v3.0 - Com Login, Menus e Jogos
 Desenvolvido com KivyMD para Material Design
 Autor: Nykollas Guimarães
 """
 
 import os
+import json
+import random
 from datetime import datetime
 from kivy.config import Config
 
-# Configurações de janela (DEVE vir antes de outros imports)
 Config.set('graphics', 'width', '360')
 Config.set('graphics', 'height', '640')
 Config.set('graphics', 'resizable', '0')
@@ -20,6 +21,7 @@ from kivy.clock import Clock
 from kivymd.app import MDApp
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDRaisedButton
+from kivymd.uix.textfield import MDTextField
 
 # Design em KV Language
 KV = '''
@@ -34,113 +36,66 @@ MDScreen:
         height: "60dp"
         pos_hint: {"top": 1}
         padding: "10dp"
-        canvas.before:
-            Color:
-                rgba: app.theme_cls.primary_color + (0.1,)
-            Rectangle:
-                pos: self.pos
-                size: self.size
+
+        MDLabel:
+            text: f"👤 {app.current_user_name}"
+            theme_text_color: "Primary"
+            bold: True
+            size_hint_x: 0.6
 
         MDIconButton:
             icon: "weather-night" if app.theme_cls.theme_style == "Light" else "weather-sunny"
             on_release: app.toggle_theme()
-            icon_size: "28sp"
-        
-        MDWidget:
         
         MDIconButton:
-            icon: "close"
-            on_release: app.stop()
-            icon_size: "28sp"
+            icon: "logout"
+            on_release: app.logout()
 
-    # Conteúdo Central
+    # Conteúdo Central - Menus
     MDBoxLayout:
         orientation: 'vertical'
-        spacing: "20dp"
-        padding: "20dp"
-        pos_hint: {"center_x": .5, "center_y": .5}
+        spacing: "10dp"
+        padding: "15dp"
 
-        MDLabel:
-            text: "🐾 App dos Gatos 2.0"
-            halign: "center"
-            font_style: "H4"
-            theme_text_color: "Primary"
-            bold: True
+        # Abas de Navegação
+        MDBoxLayout:
+            orientation: 'horizontal'
+            spacing: "5dp"
             size_hint_y: None
             height: "50dp"
 
-        MDLabel:
-            text: "Selecione um gatinho"
-            halign: "center"
-            theme_text_color: "Secondary"
-            size_hint_y: None
-            height: "30dp"
+            MDRaisedButton:
+                text: "🎮 Jogos"
+                on_release: app.show_games_menu()
+                size_hint_x: 0.5
 
-        MDBoxLayout:
-            orientation: 'horizontal'
-            spacing: "40dp"
-            adaptive_size: True
-            pos_hint: {"center_x": .5}
-            size_hint_y: None
-            height: "120dp"
+            MDRaisedButton:
+                text: "🐱 Gatos"
+                on_release: app.show_cats_menu()
+                size_hint_x: 0.5
 
-            # Gato Preto
+        # Área de Conteúdo
+        ScrollView:
             MDBoxLayout:
+                id: content_area
                 orientation: 'vertical'
-                spacing: "10dp"
-                adaptive_size: True
-
-                MDFloatingActionButton:
-                    icon: "cat"
-                    md_bg_color: 0.1, 0.1, 0.1, 1
-                    on_release: app.show_cat_popup("🐈‍⬛ Gato Preto")
-                    size_hint: None, None
-                    size: "80dp", "80dp"
+                spacing: "15dp"
+                padding: "10dp"
+                adaptive_height: True
 
                 MDLabel:
-                    text: "Preto"
+                    text: "Bem-vindo ao App dos Gatos!"
                     halign: "center"
-                    theme_text_color: "Secondary"
+                    font_style: "H5"
                     size_hint_y: None
-                    height: "30dp"
+                    height: "50dp"
 
-            # Gato Branco
-            MDBoxLayout:
-                orientation: 'vertical'
-                spacing: "10dp"
-                adaptive_size: True
-
-                MDFloatingActionButton:
-                    icon: "cat"
-                    md_bg_color: 0.9, 0.9, 0.9, 1
-                    icon_color: 0.1, 0.1, 0.1, 1
-                    on_release: app.show_cat_popup("🐈 Gato Branco")
-                    size_hint: None, None
-                    size: "80dp", "80dp"
-
-                MDLabel:
-                    text: "Branco"
-                    halign: "center"
-                    theme_text_color: "Secondary"
-                    size_hint_y: None
-                    height: "30dp"
-
-    # Rodapé
-    MDLabel:
-        text: "by Nykollas Guimarães"
-        halign: "right"
-        size_hint_y: None
-        height: "40dp"
-        padding: "15dp", "15dp"
-        theme_text_color: "Hint"
-        font_style: "Caption"
-
-    # Console F8 (Sobreposto)
+    # Console F8
     MDBoxLayout:
         id: dev_console
         orientation: 'vertical'
         padding: "10dp"
-        size_hint_y: 0.4
+        size_hint_y: 0.3
         pos_hint: {"top": 1}
         opacity: 0
         disabled: True
@@ -152,10 +107,9 @@ MDScreen:
                 size: self.size
         
         MDLabel:
-            text: "🖥️ Terminal (F8 para fechar)"
+            text: "🖥️ Terminal (F8)"
             theme_text_color: "Custom"
             text_color: 0.0, 1.0, 0.0, 1
-            font_style: "Caption"
             size_hint_y: None
             height: "20dp"
 
@@ -168,126 +122,305 @@ MDScreen:
                 size_hint_y: None
                 height: self.texture_size[1]
                 valign: "top"
-                markup: True
 
         MDTextField:
             id: console_input
-            hint_text: "/quit, /clear, /viewLog"
-            line_color_focus: 0.0, 1.0, 0.0, 1
-            text_color_focus: 0.0, 1.0, 0.0, 1
+            hint_text: "/help"
             on_text_validate: app.process_command(self.text); self.text = ""
             size_hint_y: None
             height: "40dp"
 '''
 
 class GatoApp(MDApp):
-    """Aplicação principal do App dos Gatos"""
-    
     console_logs = StringProperty("")
+    current_user_name = StringProperty("Visitante")
+    current_user_id = StringProperty("")
+    current_user_color = StringProperty("roxo")
     
     def build(self):
-        """Inicializa a aplicação"""
-        # Configurar tema
         self.theme_cls.primary_palette = "DeepPurple"
         self.theme_cls.theme_style = "Light"
         self.dialog = None
+        self.secret_number = random.randint(1, 10)
+        self.guesses = 0
         
-        # Carregar interface KV
         screen = Builder.load_string(KV)
-        
-        # Registrar eventos de teclado
         Window.bind(on_key_down=self.on_keyboard_down)
-        
-        # Agendar inicialização do console após a tela estar pronta
-        Clock.schedule_once(self._init_console, 0.1)
-        
-        self.add_log("✅ App Iniciado com sucesso!")
-        self.add_log("🎨 Tema: Claro")
-        self.add_log("⌨️  Pressione F8 para abrir o console")
+        Clock.schedule_once(self._init_app, 0.1)
         
         return screen
     
-    def _init_console(self, dt):
-        """Inicializa o console após a tela estar pronta"""
-        if self.root and 'console_input' in self.root.ids:
-            self.add_log("🖥️ Console pronto para usar")
-
-    def toggle_theme(self):
-        """Alterna entre tema claro e escuro"""
-        old_theme = self.theme_cls.theme_style
-        new_theme = "Dark" if old_theme == "Light" else "Light"
-        self.theme_cls.theme_style = new_theme
-        self.add_log(f"🎨 Tema alterado para: {new_theme}")
-
-    def add_log(self, message):
-        """Adiciona uma mensagem ao console com timestamp"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        self.console_logs += f"[{timestamp}] {message}\n"
-
-    def show_cat_popup(self, cat_name):
-        """Exibe um popup com informações do gato"""
-        self.add_log(f"🐱 Selecionado: {cat_name}")
+    def _init_app(self, dt):
+        self.show_login_screen()
+    
+    def show_login_screen(self):
+        """Tela de login"""
+        content = MDBoxLayout(orientation='vertical', spacing='15dp', padding='20dp')
         
-        descriptions = {
-            "🐈‍⬛ Gato Preto": "Um gatinho misterioso e elegante, pronto para trazer sorte!",
-            "🐈 Gato Branco": "Puro como a neve, este gatinho é o companheiro perfeito.",
-        }
+        username_field = MDTextField(hint_text="Usuário", size_hint_y=None, height='50dp')
+        password_field = MDTextField(hint_text="Senha", password=True, size_hint_y=None, height='50dp')
         
-        description = descriptions.get(cat_name, "Um gatinho adorável!")
+        def login_action(instance):
+            username = username_field.text
+            password = password_field.text
+            
+            if username and password:
+                self.login_user(username, password)
+                self.dialog.dismiss()
+            else:
+                self.add_log("❌ Preencha todos os campos")
+        
+        def register_action(instance):
+            self.show_register_screen()
+            self.dialog.dismiss()
+        
+        content.add_widget(username_field)
+        content.add_widget(password_field)
+        
+        buttons_layout = MDBoxLayout(size_hint_y=None, height='50dp', spacing='10dp')
+        buttons_layout.add_widget(MDRaisedButton(text="LOGIN", on_release=login_action, size_hint_x=0.5))
+        buttons_layout.add_widget(MDRaisedButton(text="REGISTRAR", on_release=register_action, size_hint_x=0.5))
+        
+        content.add_widget(buttons_layout)
         
         self.dialog = MDDialog(
-            title=cat_name,
-            text=description,
-            buttons=[
-                MDRaisedButton(
-                    text="FECHAR",
-                    on_release=lambda x: self.dialog.dismiss()
-                )
-            ],
+            title="🔐 Login",
+            type="custom",
+            content_cls=content,
+            size_hint=(0.9, 0.6)
         )
         self.dialog.open()
-
+    
+    def show_register_screen(self):
+        """Tela de registro"""
+        content = MDBoxLayout(orientation='vertical', spacing='15dp', padding='20dp')
+        
+        username_field = MDTextField(hint_text="Usuário", size_hint_y=None, height='50dp')
+        password_field = MDTextField(hint_text="Senha", password=True, size_hint_y=None, height='50dp')
+        name_field = MDTextField(hint_text="Nome", size_hint_y=None, height='50dp')
+        
+        def register_action(instance):
+            username = username_field.text
+            password = password_field.text
+            name = name_field.text
+            
+            if username and password and name:
+                self.register_user(username, password, name)
+                self.dialog.dismiss()
+                self.show_login_screen()
+            else:
+                self.add_log("❌ Preencha todos os campos")
+        
+        content.add_widget(username_field)
+        content.add_widget(password_field)
+        content.add_widget(name_field)
+        content.add_widget(MDRaisedButton(text="REGISTRAR", on_release=register_action, size_hint_y=None, height='50dp'))
+        
+        self.dialog = MDDialog(
+            title="📝 Registrar",
+            type="custom",
+            content_cls=content,
+            size_hint=(0.9, 0.7)
+        )
+        self.dialog.open()
+    
+    def login_user(self, username, password):
+        """Login do usuário"""
+        if username == "hostadmin.ni" and password == "admin":
+            self.current_user_name = "Admin Central"
+            self.current_user_id = "usr_admin_001"
+            self.current_user_color = "roxo"
+            self.add_log(f"✅ Login bem-sucedido: {username}")
+        else:
+            self.add_log(f"❌ Credenciais inválidas")
+    
+    def register_user(self, username, password, name):
+        """Registrar novo usuário"""
+        random_color_id = random.randint(1, 9)
+        colors = ["azul", "verde", "rosa", "roxo", "amarelo", "vermelho", "laranja", "preto", "branco"]
+        color = colors[random_color_id - 1]
+        
+        self.current_user_name = name
+        self.current_user_id = f"usr_{random.randint(1000, 9999)}"
+        self.current_user_color = color
+        
+        self.add_log(f"✅ Usuário registrado: {name}")
+        self.add_log(f"🎨 Cor atribuída: {color}")
+    
+    def show_games_menu(self):
+        """Menu de jogos"""
+        content = MDBoxLayout(orientation='vertical', spacing='10dp', padding='15dp')
+        
+        content.add_widget(MDRaisedButton(
+            text="🔢 Número Secreto (1-10)",
+            on_release=lambda x: self.start_number_game(),
+            size_hint_y=None,
+            height='50dp'
+        ))
+        
+        content.add_widget(MDRaisedButton(
+            text="🎁 GIF Secreto de Gatos",
+            on_release=lambda x: self.start_gif_game(),
+            size_hint_y=None,
+            height='50dp'
+        ))
+        
+        content.add_widget(MDRaisedButton(
+            text="🃏 Cartas Aleatórias",
+            on_release=lambda x: self.start_cards_game(),
+            size_hint_y=None,
+            height='50dp'
+        ))
+        
+        self.dialog = MDDialog(
+            title="🎮 Menu de Jogos",
+            type="custom",
+            content_cls=content,
+            size_hint=(0.9, 0.6)
+        )
+        self.dialog.open()
+    
+    def show_cats_menu(self):
+        """Menu de gatos"""
+        content = MDBoxLayout(orientation='vertical', spacing='10dp', padding='15dp')
+        
+        content.add_widget(MDRaisedButton(
+            text="🐈‍⬛ Gato Preto",
+            on_release=lambda x: self.show_cat_info("🐈‍⬛ Gato Preto"),
+            size_hint_y=None,
+            height='50dp'
+        ))
+        
+        content.add_widget(MDRaisedButton(
+            text="🐈 Gato Branco",
+            on_release=lambda x: self.show_cat_info("🐈 Gato Branco"),
+            size_hint_y=None,
+            height='50dp'
+        ))
+        
+        self.dialog = MDDialog(
+            title="🐱 Menu de Gatos",
+            type="custom",
+            content_cls=content,
+            size_hint=(0.9, 0.5)
+        )
+        self.dialog.open()
+    
+    def start_number_game(self):
+        """Jogo do número secreto"""
+        self.secret_number = random.randint(1, 10)
+        self.guesses = 0
+        self.dialog.dismiss()
+        self.add_log("🎮 Jogo iniciado: Adivinhe o número de 1 a 10!")
+        
+        content = MDBoxLayout(orientation='vertical', spacing='10dp', padding='15dp')
+        guess_field = MDTextField(hint_text="Digite um número", input_filter='int', size_hint_y=None, height='50dp')
+        
+        def check_guess(instance):
+            try:
+                guess = int(guess_field.text)
+                self.guesses += 1
+                
+                if guess == self.secret_number:
+                    self.add_log(f"🎉 Acertou em {self.guesses} tentativa(s)! Ganhou 100 pontos!")
+                    self.dialog.dismiss()
+                elif guess < self.secret_number:
+                    self.add_log(f"📈 Muito baixo! Tente um número maior.")
+                else:
+                    self.add_log(f"📉 Muito alto! Tente um número menor.")
+                
+                guess_field.text = ""
+            except:
+                self.add_log("❌ Digite um número válido")
+        
+        content.add_widget(guess_field)
+        content.add_widget(MDRaisedButton(text="CHUTAR", on_release=check_guess, size_hint_y=None, height='50dp'))
+        
+        self.dialog = MDDialog(
+            title="🔢 Número Secreto",
+            type="custom",
+            content_cls=content,
+            size_hint=(0.9, 0.5)
+        )
+        self.dialog.open()
+    
+    def start_gif_game(self):
+        """Jogo do GIF secreto"""
+        gifs = [
+            "🐱 Gatinho feliz pulando",
+            "😺 Gato dormindo",
+            "🐈 Gato correndo",
+            "😸 Gato brincando",
+            "🐱‍👓 Gato inteligente"
+        ]
+        
+        secret_gif = random.choice(gifs)
+        self.add_log(f"🎁 GIF Secreto: {secret_gif}")
+        self.dialog.dismiss()
+    
+    def start_cards_game(self):
+        """Jogo de cartas aleatórias"""
+        cards = ["♠️ Ás", "♥️ Rei", "♦️ Rainha", "♣️ Valete", "🃏 Coringa"]
+        card = random.choice(cards)
+        self.add_log(f"🃏 Carta sorteada: {card}")
+        self.dialog.dismiss()
+    
+    def show_cat_info(self, cat_name):
+        """Mostrar informações do gato"""
+        descriptions = {
+            "🐈‍⬛ Gato Preto": "Um gato preto misterioso e elegante!",
+            "🐈 Gato Branco": "Um gato branco puro e carinhoso!"
+        }
+        
+        self.dialog.dismiss()
+        self.add_log(f"🐱 {cat_name}: {descriptions.get(cat_name, 'Gatinho adorável!')}")
+    
+    def logout(self):
+        """Fazer logout"""
+        self.current_user_name = "Visitante"
+        self.current_user_id = ""
+        self.add_log("👋 Logout realizado")
+        self.show_login_screen()
+    
+    def toggle_theme(self):
+        """Alternar tema"""
+        new_theme = "Dark" if self.theme_cls.theme_style == "Light" else "Light"
+        self.theme_cls.theme_style = new_theme
+        self.add_log(f"🎨 Tema alterado para: {new_theme}")
+    
+    def add_log(self, message):
+        """Adicionar log"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.console_logs += f"[{timestamp}] {message}\n"
+    
     def on_keyboard_down(self, window, key, scancode, codepoint, modifier):
-        """Processa eventos de teclado"""
+        """Processar teclas"""
         if key == 289:  # F8
             if self.root and 'dev_console' in self.root.ids:
                 console = self.root.ids.dev_console
-                if console.disabled:
-                    console.disabled = False
-                    console.opacity = 1
-                    if 'console_input' in self.root.ids:
-                        self.root.ids.console_input.focus = True
-                    self.add_log("✅ Console Aberto")
-                else:
-                    console.disabled = True
-                    console.opacity = 0
-                    self.add_log("❌ Console Fechado")
-                return True
+                console.disabled = not console.disabled
+                console.opacity = 1 if not console.disabled else 0
+                if not console.disabled and 'console_input' in self.root.ids:
+                    self.root.ids.console_input.focus = True
+            return True
         return False
-
+    
     def process_command(self, command):
-        """Processa comandos do console"""
+        """Processar comandos"""
         cmd = command.strip().lower()
         self.add_log(f"> {cmd}")
         
         if cmd == "/quit":
-            self.add_log("👋 Encerrando aplicação...")
             self.stop()
         elif cmd == "/clear":
             self.console_logs = ""
-            self.add_log("🧹 Console limpo")
-        elif cmd == "/viewlog":
-            self.add_log("📋 Histórico de logs:")
-            self.add_log(self.console_logs)
         elif cmd == "/help":
-            self.add_log("📖 Comandos disponíveis:")
-            self.add_log("  /quit - Encerra o app")
-            self.add_log("  /clear - Limpa o console")
-            self.add_log("  /viewlog - Mostra histórico")
-            self.add_log("  /help - Mostra esta mensagem")
+            self.add_log("📖 Comandos: /quit, /clear, /help, /stats")
+        elif cmd == "/stats":
+            self.add_log(f"👤 Usuário: {self.current_user_name}")
+            self.add_log(f"🎨 Cor: {self.current_user_color}")
         else:
             self.add_log(f"❌ Comando desconhecido: {cmd}")
-            self.add_log("💡 Digite /help para ver comandos disponíveis")
 
 if __name__ == "__main__":
     GatoApp().run()
