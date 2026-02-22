@@ -1,5 +1,5 @@
 """
-🐾 Menu de Menus 2.0 - Console F8 Estilo FiveM com Debug
+🐾 Menu de Menus 2.0 - Com Comando /user e Cronômetro
 Desenvolvido com KivyMD para Material Design
 Autor: Nykollas Guimarães
 """
@@ -8,7 +8,7 @@ import os
 import json
 import random
 import socket
-from datetime import datetime
+from datetime import datetime, timedelta
 from kivy.config import Config
 
 Config.set('graphics', 'width', '360')
@@ -128,7 +128,7 @@ MDScreen:
 
         MDTextField:
             id: console_input
-            hint_text: "Digite comando (ex: help, debug, stats, quit)"
+            hint_text: "Digite comando (ex: help, debug, stats, user @admin, quit)"
             on_text_validate: app.process_command(self.text); self.text = ""
             size_hint_y: None
             height: "40dp"
@@ -143,6 +143,7 @@ class GatoApp(MDApp):
     current_user_role = StringProperty("User")
     current_user_points = StringProperty("0")
     current_user_ip = StringProperty("127.0.0.1")
+    current_user_login_time = None
     
     def build(self):
         self.theme_cls.primary_palette = "DeepPurple"
@@ -151,14 +152,54 @@ class GatoApp(MDApp):
         self.secret_number = random.randint(1, 10)
         self.guesses = 0
         
+        # Simular usuários no sistema
+        self.users_db = {
+            "admin": {
+                "id": "usr_admin_001",
+                "name": "Admin Central",
+                "role": "CEO",
+                "color": "roxo",
+                "colorCode": "#8B00FF",
+                "points": 10000,
+                "ip": "127.0.0.1",
+                "login_time": datetime.now()
+            },
+            "nykollas": {
+                "id": "usr_5432",
+                "name": "Nykollas",
+                "role": "Usuário Comum",
+                "color": "azul",
+                "colorCode": "#0066FF",
+                "points": 0,
+                "ip": "192.168.1.100",
+                "login_time": datetime.now()
+            },
+            "test": {
+                "id": "usr_9999",
+                "name": "Test User",
+                "role": "Usuário Comum",
+                "color": "verde",
+                "colorCode": "#00CC00",
+                "points": 0,
+                "ip": "10.0.0.1",
+                "login_time": datetime.now()
+            }
+        }
+        
         screen = Builder.load_string(KV)
         Window.bind(on_key_down=self.on_keyboard_down)
         Clock.schedule_once(self._init_app, 0.1)
+        Clock.schedule_interval(self._update_active_time, 1)  # Atualiza a cada segundo
         
         return screen
     
     def _init_app(self, dt):
         self.show_login_screen()
+    
+    def _update_active_time(self, dt):
+        """Atualiza o tempo ativo do usuário"""
+        # Pode ser usado para cronômetro em tempo real
+        pass
     
     def get_local_ip(self):
         """Obtém IP local da máquina"""
@@ -170,6 +211,17 @@ class GatoApp(MDApp):
             return ip
         except:
             return "127.0.0.1"
+    
+    def format_uptime(self, login_time):
+        """Formata tempo ativo em HH:MM:SS"""
+        if login_time is None:
+            return "00:00:00"
+        
+        elapsed = datetime.now() - login_time
+        hours, remainder = divmod(int(elapsed.total_seconds()), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
     
     def show_login_screen(self):
         """Tela de login"""
@@ -251,6 +303,7 @@ class GatoApp(MDApp):
             self.current_user_role = "CEO"
             self.current_user_points = "10000"
             self.current_user_ip = self.get_local_ip()
+            self.current_user_login_time = datetime.now()
             self.add_log(f"✅ Login bem-sucedido: {username}")
         else:
             self.add_log(f"❌ Credenciais inválidas")
@@ -264,9 +317,10 @@ class GatoApp(MDApp):
         self.current_user_name = name
         self.current_user_id = f"usr_{random.randint(1000, 9999)}"
         self.current_user_color = color
-        self.current_user_role = "User"
+        self.current_user_role = "Usuário Comum"
         self.current_user_points = "0"
         self.current_user_ip = self.get_local_ip()
+        self.current_user_login_time = datetime.now()
         
         self.add_log(f"✅ Usuário registrado: {name}")
         self.add_log(f"🎨 Cor atribuída: {color}")
@@ -403,6 +457,7 @@ class GatoApp(MDApp):
         """Fazer logout"""
         self.current_user_name = "Visitante"
         self.current_user_id = ""
+        self.current_user_login_time = None
         self.add_log("👋 Logout realizado")
         self.show_login_screen()
     
@@ -436,6 +491,35 @@ class GatoApp(MDApp):
 """
         self.add_log(debug_info)
     
+    def show_user_profile(self, username):
+        """Mostrar perfil de um usuário"""
+        username = username.lower()
+        
+        if username not in self.users_db:
+            self.add_log(f"❌ Usuário '{username}' não encontrado")
+            return
+        
+        user = self.users_db[username]
+        uptime = self.format_uptime(user.get("login_time"))
+        entry_time = user.get("login_time").strftime("%H:%M:%S") if user.get("login_time") else "N/A"
+        
+        profile_info = f"""
+═══════════════════════════════════════════
+    👤 PERFIL DO USUÁRIO
+═══════════════════════════════════════════
+👤 Nome: {user['name']}
+🆔 ID: {user['id']}
+📝 Cargo: {user['role']}
+🌐 IP: {user['ip']}
+⏰ Entrada: {entry_time}
+⏱️ Tempo Ativo: {uptime}
+✅ Status: Online
+💰 Pontos: {user['points']}
+🎨 Cor: {user['color']} ({user['colorCode']})
+═══════════════════════════════════════════
+"""
+        self.add_log(profile_info)
+    
     def on_keyboard_down(self, window, key, scancode, codepoint, modifier):
         """Processar teclas"""
         if key == 289:  # F8
@@ -462,8 +546,13 @@ class GatoApp(MDApp):
         
         self.add_log(f"> {command}")
         
-        # Comandos
-        if cmd in ["quit", "q", "exit"]:
+        # Comando /user @username
+        if cmd.startswith("user @"):
+            username = cmd.replace("user @", "").strip()
+            self.show_user_profile(username)
+        
+        # Comandos principais
+        elif cmd in ["quit", "q", "exit"]:
             self.stop()
         elif cmd in ["clear", "cls", "c"]:
             self.console_logs = ""
@@ -474,11 +563,13 @@ class GatoApp(MDApp):
   help/h/?        - Mostra esta ajuda
   stats/st        - Mostra estatísticas
   debug/dbg       - Mostra informações de debug
+  user @username  - Mostra perfil do usuário
   clear/cls/c     - Limpa console
   quit/q/exit     - Encerra app
   
 💡 Dica: Comandos funcionam com ou sem barra (/)
 Exemplo: /help ou help
+Exemplo: /user @admin ou user @admin
 """)
         elif cmd in ["stats", "st"]:
             self.add_log(f"""
