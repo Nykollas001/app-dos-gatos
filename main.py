@@ -1,5 +1,5 @@
 """
-🐾 App dos Gatos v3.0 - Com Login, Menus e Jogos
+🐾 Menu de Menus 2.0 - Console F8 Estilo FiveM com Debug
 Desenvolvido com KivyMD para Material Design
 Autor: Nykollas Guimarães
 """
@@ -7,6 +7,7 @@ Autor: Nykollas Guimarães
 import os
 import json
 import random
+import socket
 from datetime import datetime
 from kivy.config import Config
 
@@ -84,34 +85,35 @@ MDScreen:
                 adaptive_height: True
 
                 MDLabel:
-                    text: "Bem-vindo ao App dos Gatos!"
+                    text: "Bem-vindo ao Menu de Menus 2.0!"
                     halign: "center"
                     font_style: "H5"
                     size_hint_y: None
                     height: "50dp"
 
-    # Console F8
+    # Console F8 (Estilo FiveM)
     MDBoxLayout:
         id: dev_console
         orientation: 'vertical'
         padding: "10dp"
-        size_hint_y: 0.3
+        size_hint_y: 0.4
         pos_hint: {"top": 1}
         opacity: 0
         disabled: True
         canvas.before:
             Color:
-                rgba: 0.05, 0.05, 0.05, 0.95
+                rgba: 0.02, 0.02, 0.05, 0.95
             Rectangle:
                 pos: self.pos
                 size: self.size
         
         MDLabel:
-            text: "🖥️ Terminal (F8)"
+            text: "🖥️ CONSOLE (F8) - Pressione F1 para Debug"
             theme_text_color: "Custom"
             text_color: 0.0, 1.0, 0.0, 1
             size_hint_y: None
-            height: "20dp"
+            height: "25dp"
+            font_size: "12sp"
 
         ScrollView:
             MDLabel:
@@ -122,13 +124,15 @@ MDScreen:
                 size_hint_y: None
                 height: self.texture_size[1]
                 valign: "top"
+                font_size: "11sp"
 
         MDTextField:
             id: console_input
-            hint_text: "/help"
+            hint_text: "Digite comando (ex: help, debug, stats, quit)"
             on_text_validate: app.process_command(self.text); self.text = ""
             size_hint_y: None
             height: "40dp"
+            font_size: "12sp"
 '''
 
 class GatoApp(MDApp):
@@ -136,6 +140,9 @@ class GatoApp(MDApp):
     current_user_name = StringProperty("Visitante")
     current_user_id = StringProperty("")
     current_user_color = StringProperty("roxo")
+    current_user_role = StringProperty("User")
+    current_user_points = StringProperty("0")
+    current_user_ip = StringProperty("127.0.0.1")
     
     def build(self):
         self.theme_cls.primary_palette = "DeepPurple"
@@ -152,6 +159,17 @@ class GatoApp(MDApp):
     
     def _init_app(self, dt):
         self.show_login_screen()
+    
+    def get_local_ip(self):
+        """Obtém IP local da máquina"""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except:
+            return "127.0.0.1"
     
     def show_login_screen(self):
         """Tela de login"""
@@ -230,6 +248,9 @@ class GatoApp(MDApp):
             self.current_user_name = "Admin Central"
             self.current_user_id = "usr_admin_001"
             self.current_user_color = "roxo"
+            self.current_user_role = "CEO"
+            self.current_user_points = "10000"
+            self.current_user_ip = self.get_local_ip()
             self.add_log(f"✅ Login bem-sucedido: {username}")
         else:
             self.add_log(f"❌ Credenciais inválidas")
@@ -243,6 +264,9 @@ class GatoApp(MDApp):
         self.current_user_name = name
         self.current_user_id = f"usr_{random.randint(1000, 9999)}"
         self.current_user_color = color
+        self.current_user_role = "User"
+        self.current_user_points = "0"
+        self.current_user_ip = self.get_local_ip()
         
         self.add_log(f"✅ Usuário registrado: {name}")
         self.add_log(f"🎨 Cor atribuída: {color}")
@@ -393,6 +417,25 @@ class GatoApp(MDApp):
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.console_logs += f"[{timestamp}] {message}\n"
     
+    def show_debug_info(self):
+        """Mostrar informações de debug"""
+        debug_info = f"""
+═══════════════════════════════════════════
+    🖥️ DEBUG CONSOLE v2.0
+═══════════════════════════════════════════
+👤 Usuário: {self.current_user_name}
+🆔 ID: {self.current_user_id}
+🎨 Cor: {self.current_user_color}
+💰 Pontos: {self.current_user_points}
+👑 Role: {self.current_user_role}
+🌐 IP: {self.current_user_ip}
+⏰ Hora: {datetime.now().strftime("%H:%M:%S")}
+📱 App: Menu de Menus 2.0
+✅ Status: Online
+═══════════════════════════════════════════
+"""
+        self.add_log(debug_info)
+    
     def on_keyboard_down(self, window, key, scancode, codepoint, modifier):
         """Processar teclas"""
         if key == 289:  # F8
@@ -402,25 +445,53 @@ class GatoApp(MDApp):
                 console.opacity = 1 if not console.disabled else 0
                 if not console.disabled and 'console_input' in self.root.ids:
                     self.root.ids.console_input.focus = True
+                    self.add_log("✅ Console Aberto (F1 para Debug)")
+            return True
+        elif key == 282:  # F1
+            self.show_debug_info()
             return True
         return False
     
     def process_command(self, command):
-        """Processar comandos"""
+        """Processar comandos (com ou sem barra)"""
         cmd = command.strip().lower()
-        self.add_log(f"> {cmd}")
         
-        if cmd == "/quit":
+        # Remove barra se existir
+        if cmd.startswith('/'):
+            cmd = cmd[1:]
+        
+        self.add_log(f"> {command}")
+        
+        # Comandos
+        if cmd in ["quit", "q", "exit"]:
             self.stop()
-        elif cmd == "/clear":
+        elif cmd in ["clear", "cls", "c"]:
             self.console_logs = ""
-        elif cmd == "/help":
-            self.add_log("📖 Comandos: /quit, /clear, /help, /stats")
-        elif cmd == "/stats":
-            self.add_log(f"👤 Usuário: {self.current_user_name}")
-            self.add_log(f"🎨 Cor: {self.current_user_color}")
+            self.add_log("✅ Console limpo")
+        elif cmd in ["help", "h", "?"]:
+            self.add_log("""
+📖 COMANDOS DISPONÍVEIS:
+  help/h/?        - Mostra esta ajuda
+  stats/st        - Mostra estatísticas
+  debug/dbg       - Mostra informações de debug
+  clear/cls/c     - Limpa console
+  quit/q/exit     - Encerra app
+  
+💡 Dica: Comandos funcionam com ou sem barra (/)
+Exemplo: /help ou help
+""")
+        elif cmd in ["stats", "st"]:
+            self.add_log(f"""
+📊 ESTATÍSTICAS:
+  👤 Usuário: {self.current_user_name}
+  💰 Pontos: {self.current_user_points}
+  👑 Role: {self.current_user_role}
+  🎨 Cor: {self.current_user_color}
+""")
+        elif cmd in ["debug", "dbg"]:
+            self.show_debug_info()
         else:
-            self.add_log(f"❌ Comando desconhecido: {cmd}")
+            self.add_log(f"❌ Comando desconhecido: {cmd} (Digite 'help' para ajuda)")
 
 if __name__ == "__main__":
     GatoApp().run()
